@@ -43,8 +43,8 @@ export default function PriceCard() {
           data?.change >= 0 ? "text-green-400" : "text-red-400"
         }`}
       >
-        {data
-          ? `${data.change.toFixed(2)} (${data.changePercent.toFixed(2)}%)`
+        {data?.change !== undefined && data?.changePercent !== undefined
+          ? `${Number(data.change).toFixed(2)} (${Number(data.changePercent).toFixed(2)}%)`
           : "Waiting for live market data..."}
       </p>
 

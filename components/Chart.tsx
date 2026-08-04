@@ -1,40 +1,63 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { createChart } from "lightweight-charts";
+import { useEffect, useRef, useState } from "react";
+import {
+  createChart,
+  CandlestickSeries,
+} from "lightweight-charts";
 
 export default function Chart() {
-  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
+  const [chartData, setChartData] = useState<any[]>([]);
 
   useEffect(() => {
-    if (!chartContainerRef.current) return;
+    const load = async () => {
+      const res = await fetch("/api/market", {
+        cache: "no-store",
+      });
 
-    const chart = createChart(chartContainerRef.current, {
-      width: chartContainerRef.current.clientWidth,
-      height: 300,
+      const data = await res.json();
+
+      if (data.chartData) {
+        setChartData(data.chartData);
+      }
+    };
+
+    load();
+  }, []);
+
+  useEffect(() => {
+    if (!chartRef.current || chartData.length === 0) return;
+
+    const chart = createChart(chartRef.current, {
+      width: chartRef.current.clientWidth,
+      height: 350,
+      layout: {
+        background: { color: "#18181b" },
+        textColor: "#ffffff",
+      },
+      grid: {
+        vertLines: { color: "#333333" },
+        horzLines: { color: "#333333" },
+      },
     });
 
-    const lineSeries = chart.addLineSeries();
+    const series = chart.addSeries(CandlestickSeries);
 
-    lineSeries.setData([
-      { time: "2026-07-28", value: 24310 },
-      { time: "2026-07-29", value: 24350 },
-      { time: "2026-07-30", value: 24290 },
-      { time: "2026-07-31", value: 24383 },
-    ]);
+    series.setData(chartData);
 
-    return () => {
-      chart.remove();
-    };
-  }, []);
+    chart.timeScale().fitContent();
+
+    return () => chart.remove();
+  }, [chartData]);
 
   return (
     <div className="bg-zinc-900 rounded-2xl p-4 mt-6">
-      <h2 className="text-xl font-bold mb-4 text-white">
-        NIFTY 50 Chart
+      <h2 className="text-xl font-bold mb-4">
+        📈 NIFTY 50 Candlestick Chart
       </h2>
 
-      <div ref={chartContainerRef} />
+      <div ref={chartRef}></div>
     </div>
   );
 }
