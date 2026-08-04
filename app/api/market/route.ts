@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
-import { EMA, RSI } from "technicalindicators";
+import { EMA, RSI, MACD } from "technicalindicators";
 
 const yahooFinance = new YahooFinance();
 
@@ -65,25 +65,56 @@ export async function GET() {
           }).at(-1) ?? 50
         : 50;
 
+    const macdResult =
+      closes.length >= 35
+        ? MACD.calculate({
+            values: closes,
+            fastPeriod: 12,
+            slowPeriod: 26,
+            signalPeriod: 9,
+            SimpleMAOscillator: false,
+            SimpleMASignal: false,
+          }).at(-1)
+        : undefined;
+
+    const macd = macdResult?.MACD ?? 0;
+    const signalLine = macdResult?.signal ?? 0;
+    const histogram = macdResult?.histogram ?? 0;
+
     let signal = "WAIT";
 
-    if (ema9 > ema21 && rsi < 70) {
+    if (
+      ema9 > ema21 &&
+      rsi < 70 &&
+      macd > signalLine
+    ) {
       signal = "BUY";
-    } else if (ema9 < ema21 && rsi > 30) {
+    } else if (
+      ema9 < ema21 &&
+      rsi > 30 &&
+      macd < signalLine
+    ) {
       signal = "SELL";
     }
-
     return NextResponse.json({
       symbol: quote.symbol,
       price,
       change,
       changePercent,
       marketState,
+
       ema9,
       ema21,
       rsi,
+
+      macd,
+      signalLine,
+      histogram,
+
       signal,
+
       chartData,
+
       updatedAt: new Date().toISOString(),
     });
   } catch (error) {
