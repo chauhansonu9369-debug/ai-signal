@@ -5,6 +5,7 @@ import SignalCard from "../components/SignalCard";
 import ConfidenceCard from "../components/ConfidenceCard";
 import MacdCard from "../components/MacdCard";
 import SignalHistory from "../components/SignalHistory";
+import SupportResistance from "../components/SupportResistance";
 
 export default function Home() {
   return (
@@ -22,6 +23,8 @@ export default function Home() {
 
         <MacdCard />
 
+        <SupportResistance />
+        
         <SignalHistory />
       </div>
     </main>

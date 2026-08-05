@@ -9,7 +9,7 @@ export async function GET() {
     const quote = await yahooFinance.quote("^NSEI");
 
     const history = await yahooFinance.chart("^NSEI", {
-      period1: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      period1: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
       interval: "1d",
     });
 
@@ -81,20 +81,66 @@ export async function GET() {
     const signalLine = macdResult?.signal ?? 0;
     const histogram = macdResult?.histogram ?? 0;
 
+    console.log("MACD Result:", macdResult);
+    console.log("Closes Length:", closes.length);
+    
+    let score = 50;
+    const reasons: string[] = [];
+    
+    // EMA
+    if (ema9 > ema21) {
+      score += 20;
+      reasons.push("EMA Bullish");
+    } else {
+      score -= 20;
+      reasons.push("EMA Bearish");
+    }
+    
+    // MACD
+    if (macd > signalLine) {
+      score += 20;
+      reasons.push("MACD Bullish");
+    } else {
+      score -= 20;
+      reasons.push("MACD Bearish");
+    }
+    
+    // RSI
+    if (rsi >= 45 && rsi <= 65) {
+      score += 15;
+      reasons.push("Healthy RSI");
+    } else if (rsi > 70) {
+      score -= 15;
+      reasons.push("Overbought");
+    } else if (rsi < 30) {
+      score += 15;
+      reasons.push("Oversold");
+    }
+    
+    // Price vs EMA21
+    if (price > ema21) {
+      score += 10;
+      reasons.push("Price Above EMA21");
+    } else {
+      score -= 10;
+      reasons.push("Price Below EMA21");
+    }
+    
+    // Limit score
+    score = Math.max(0, Math.min(100, score));
+    
     let signal = "WAIT";
-
-    if (
-      ema9 > ema21 &&
-      rsi < 70 &&
-      macd > signalLine
-    ) {
+    
+    if (score >= 80) {
+      signal = "STRONG BUY";
+    } else if (score >= 60) {
       signal = "BUY";
-    } else if (
-      ema9 < ema21 &&
-      rsi > 30 &&
-      macd < signalLine
-    ) {
+    } else if (score >= 40) {
+      signal = "WAIT";
+    } else if (score >= 20) {
       signal = "SELL";
+    } else {
+      signal = "STRONG SELL";
     }
     return NextResponse.json({
       symbol: quote.symbol,
@@ -112,6 +158,9 @@ export async function GET() {
       histogram,
 
       signal,
+
+      score,
+      reasons,
 
       chartData,
 

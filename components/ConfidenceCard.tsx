@@ -7,12 +7,16 @@ export default function ConfidenceCard() {
 
   useEffect(() => {
     const load = async () => {
-      const res = await fetch("/api/market", {
-        cache: "no-store",
-      });
+      try {
+        const res = await fetch("/api/market", {
+          cache: "no-store",
+        });
 
-      const json = await res.json();
-      setData(json);
+        const json = await res.json();
+        setData(json);
+      } catch (err) {
+        console.error(err);
+      }
     };
 
     load();
@@ -22,12 +26,7 @@ export default function ConfidenceCard() {
     return () => clearInterval(timer);
   }, []);
 
-  const confidence =
-    data?.signal === "BUY"
-      ? 92
-      : data?.signal === "SELL"
-      ? 88
-      : 60;
+  const confidence = Number(data?.score ?? 0);
 
   return (
     <div className="bg-zinc-900 rounded-2xl p-5 mt-6">
@@ -37,7 +36,15 @@ export default function ConfidenceCard() {
 
       <div className="w-full bg-zinc-700 rounded-full h-4 mt-5">
         <div
-          className="bg-cyan-500 h-4 rounded-full"
+          className={`h-4 rounded-full ${
+            confidence >= 80
+              ? "bg-green-500"
+              : confidence >= 60
+              ? "bg-cyan-500"
+              : confidence >= 40
+              ? "bg-yellow-500"
+              : "bg-red-500"
+          }`}
           style={{ width: `${confidence}%` }}
         />
       </div>
@@ -47,9 +54,29 @@ export default function ConfidenceCard() {
       </p>
 
       <div className="mt-4 space-y-2 text-sm">
-        <p>EMA Trend: {data?.ema9 > data?.ema21 ? "✅ Bullish" : "🔴 Bearish"}</p>
-        <p>RSI: {Number(data?.rsi ?? 50).toFixed(2)}</p>
-        <p>Signal: <b>{data?.signal}</b></p>
+        <p>
+          EMA Trend:{" "}
+          {data?.ema9 > data?.ema21 ? "✅ Bullish" : "🔴 Bearish"}
+        </p>
+
+        <p>
+          MACD:{" "}
+          {data?.macd > data?.signalLine
+            ? "✅ Bullish"
+            : "🔴 Bearish"}
+        </p>
+
+        <p>
+          RSI: {Number(data?.rsi ?? 0).toFixed(2)}
+        </p>
+
+        <p>
+          Signal: <b>{data?.signal ?? "--"}</b>
+        </p>
+
+        <p>
+          AI Score: <b>{confidence}%</b>
+        </p>
       </div>
     </div>
   );

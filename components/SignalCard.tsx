@@ -6,12 +6,13 @@ export default function SignalCard() {
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
-    const load = () => {
-      fetch("/api/market", {
+    const load = async () => {
+      const res = await fetch("/api/market", {
         cache: "no-store",
-      })
-        .then((res) => res.json())
-        .then((json) => setData(json));
+      });
+
+      const json = await res.json();
+      setData(json);
     };
 
     load();
@@ -23,59 +24,53 @@ export default function SignalCard() {
 
   const price = Number(data?.price ?? 0);
 
-  const entry = price.toFixed(2);
-  const target = (price + 100).toFixed(2);
-  const stopLoss = (price - 50).toFixed(2);
-
   return (
     <div className="rounded-2xl bg-zinc-900 p-5 mt-6">
       <h2
         className={`text-center text-3xl font-bold ${
-          data?.signal === "BUY"
+          String(data?.signal).includes("BUY")
             ? "text-green-500"
-            : data?.signal === "SELL"
+            : String(data?.signal).includes("SELL")
             ? "text-red-500"
             : "text-yellow-400"
         }`}
       >
-        {data?.signal || "WAIT"}
+        {data?.signal ?? "WAIT"}
       </h2>
 
-      <div className="mt-6 space-y-3 text-lg">
+      <div className="mt-5 space-y-3">
+
         <div className="flex justify-between">
           <span>Live Price</span>
-          <span>{price || "--"}</span>
-        </div>
-
-        <div className="flex justify-between">
-          <span>Entry</span>
-          <span>{entry}</span>
-        </div>
-
-        <div className="flex justify-between">
-          <span>Target</span>
-          <span className="text-green-400">{target}</span>
-        </div>
-
-        <div className="flex justify-between">
-          <span>Stop Loss</span>
-          <span className="text-red-400">{stopLoss}</span>
-        </div>
-
-        <div className="flex justify-between">
-          <span>Market</span>
-          <span>{data?.marketState ?? "--"}</span>
+          <b>{price.toFixed(2)}</b>
         </div>
 
         <div className="flex justify-between">
           <span>RSI</span>
-          <span>{data?.rsi?.toFixed(2) ?? "--"}</span>
+          <b>{Number(data?.rsi ?? 0).toFixed(2)}</b>
         </div>
 
         <div className="flex justify-between">
-          <span>Updated</span>
-          <span>{data?.updatedAt ? "Live" : "--"}</span>
+          <span>AI Score</span>
+          <b className="text-cyan-400">
+            {data?.score ?? 0}%
+          </b>
         </div>
+
+        <div className="mt-5">
+          <h3 className="font-bold text-lg mb-2">
+            Why this Signal?
+          </h3>
+
+          <ul className="space-y-1 text-sm">
+            {data?.reasons?.map((reason: string, index: number) => (
+              <li key={index}>
+                ✅ {reason}
+              </li>
+            ))}
+          </ul>
+        </div>
+
       </div>
     </div>
   );
