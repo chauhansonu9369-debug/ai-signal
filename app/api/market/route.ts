@@ -90,139 +90,138 @@ export async function GET() {
     const histogram = macdResult?.histogram ?? 0;
 
     const atr =
-      highs.length >= 14 &&
-      lows.length >= 14 &&
-      closes.length >= 14
-        ? ATR.calculate({
-            high: highs,
-            low: lows,
-            close: closes,
-            period: 14,
-          }).at(-1) ?? 0
-        : 0;
+      ATR.calculate({
+        high: highs,
+        low: lows,
+        close: closes,
+        period: 14,
+      }).at(-1) ?? 0;
 
     const adx =
-      highs.length >= 14 &&
-      lows.length >= 14 &&
-      closes.length >= 14
-        ? ADX.calculate({
-            high: highs,
-            low: lows,
-            close: closes,
-            period: 14,
-          }).at(-1)?.adx ?? 0
-        : 0;
+      ADX.calculate({
+        high: highs,
+        low: lows,
+        close: closes,
+        period: 14,
+      }).at(-1)?.adx ?? 0;
 
-    let score = 50;
-    const reasons: string[] = [];
+      let score = 50;
+      const reasons: string[] = [];
 
-    if (ema9 > ema21) {
-      score += 20;
-      reasons.push("EMA Bullish");
-    } else {
-      score -= 20;
-      reasons.push("EMA Bearish");
-    }
+      // EMA
+      if (ema9 > ema21) {
+        score += 20;
+        reasons.push("EMA Bullish");
+      } else {
+        score -= 20;
+        reasons.push("EMA Bearish");
+      }
 
-    if (macd > signalLine) {
-      score += 20;
-      reasons.push("MACD Bullish");
-    } else {
-      score -= 20;
-      reasons.push("MACD Bearish");
-    }
+      // MACD
+      if (macd > signalLine) {
+        score += 20;
+        reasons.push("MACD Bullish");
+      } else {
+        score -= 20;
+        reasons.push("MACD Bearish");
+      }
 
-    if (rsi >= 45 && rsi <= 65) {
-      score += 15;
-      reasons.push("Healthy RSI");
-    } else if (rsi > 70) {
-      score -= 15;
-      reasons.push("Overbought");
-    } else if (rsi < 30) {
-      score += 15;
-      reasons.push("Oversold");
-    }
+      // RSI
+      if (rsi >= 45 && rsi <= 65) {
+        score += 15;
+        reasons.push("Healthy RSI");
+      } else if (rsi > 70) {
+        score -= 15;
+        reasons.push("Overbought");
+      } else if (rsi < 30) {
+        score += 15;
+        reasons.push("Oversold");
+      }
 
-    if (price > ema21) {
-      score += 10;
-      reasons.push("Price Above EMA21");
-    } else {
-      score -= 10;
-      reasons.push("Price Below EMA21");
-    }
+      // Price vs EMA
+      if (price > ema21) {
+        score += 10;
+        reasons.push("Price Above EMA21");
+      } else {
+        score -= 10;
+        reasons.push("Price Below EMA21");
+      }
 
-    if (adx > 25) {
-      score += 15;
-      reasons.push("Strong Trend (ADX)");
-    }
+      // ADX
+      if (adx > 25) {
+        score += 15;
+        reasons.push("Strong Trend (ADX)");
+      }
 
-    score = Math.max(0, Math.min(100, score));
+      score = Math.max(0, Math.min(100, score));
 
-    let signal = "WAIT";
+      let signal = "WAIT";
 
-    if (score >= 90) {
-      signal = "STRONG BUY";
-    } else if (score >= 70) {
-      signal = "BUY";
-    } else if (score >= 40) {
-      signal = "WAIT";
-    } else if (score >= 20) {
-      signal = "SELL";
-    } else {
-      signal = "STRONG SELL";
-    }
+      if (score >= 90) {
+        signal = "STRONG BUY";
+      } else if (score >= 70) {
+        signal = "BUY";
+      } else if (score >= 40) {
+        signal = "WAIT";
+      } else if (score >= 20) {
+        signal = "SELL";
+      } else {
+        signal = "STRONG SELL";
+      }
 
-    const support =
-      lows.length > 10
-        ? Math.min(...lows.slice(-10))
-        : price;
+      const support =
+        lows.length > 10
+          ? Math.min(...lows.slice(-10))
+          : price;
 
-    const resistance =
-      highs.length > 10
-        ? Math.max(...highs.slice(-10))
-        : price;
+      const resistance =
+        highs.length > 10
+          ? Math.max(...highs.slice(-10))
+          : price;
 
-    return NextResponse.json({
-      symbol: quote.symbol,
-      price,
-      change,
-      changePercent,
-      marketState,
+          return NextResponse.json({
+            symbol: quote.symbol,
 
-      ema9,
-      ema21,
-      rsi,
+            price,
+            change,
+            changePercent,
+            marketState,
 
-      macd,
-      signalLine,
-      histogram,
+            ema9,
+            ema21,
+            rsi,
 
-      atr,
-      adx,
+            macd,
+            signalLine,
+            histogram,
 
-      signal,
-      score,
-      reasons,
+            atr,
+            adx,
 
-      entry: price,
-      stopLoss: Number((price - atr).toFixed(2)),
-      target1: Number((price + atr * 2).toFixed(2)),
-      target2: Number((price + atr * 4).toFixed(2)),
+            signal,
+            score,
+            reasons,
 
-      support,
-      resistance,
+            entry: price,
+            stopLoss: Number((price - atr).toFixed(2)),
+            target1: Number((price + atr * 2).toFixed(2)),
+            target2: Number((price + atr * 4).toFixed(2)),
 
-      chartData,
+            support,
+            resistance,
 
-      updatedAt: new Date().toISOString(),
-    });
+            chartData,
+
+            updatedAt: new Date().toISOString(),
+          });
+
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "Failed to fetch market data",
-        details: String(error),
-      },
-      { status: 500 }
-    );
+          return NextResponse.json(
+            {
+              error: "Failed to fetch market data",
+              details: String(error),
+            },
+            { status: 500 }
+          );
   }
 }

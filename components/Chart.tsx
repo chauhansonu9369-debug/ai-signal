@@ -33,16 +33,30 @@ export default function Chart() {
 
     const chart = createChart(chartRef.current, {
       width: chartRef.current.clientWidth,
-      height: 350,
+      height: 400,
 
       layout: {
-        background: { color: "#18181b" },
-        textColor: "#ffffff",
+        background: {
+          color: "#0f172a",
+        },
+        textColor: "#f8fafc",
       },
 
       grid: {
-        vertLines: { color: "#333333" },
-        horzLines: { color: "#333333" },
+        vertLines: {
+          color: "#334155",
+        },
+        horzLines: {
+          color: "#334155",
+        },
+      },
+
+      rightPriceScale: {
+        borderColor: "#475569",
+      },
+
+      timeScale: {
+        borderColor: "#475569",
       },
     });
 
@@ -57,40 +71,61 @@ export default function Chart() {
     const resistance = Math.max(...highs);
 
     const supportSeries = chart.addSeries(LineSeries, {
-      color: "#00ff66",
+      color: "#22c55e",
       lineWidth: 2,
+      lineStyle: 2,
+      priceLineVisible: false,
+      lastValueVisible: false,
     });
 
     const resistanceSeries = chart.addSeries(LineSeries, {
-      color: "#ff4444",
+      color: "#ef4444",
       lineWidth: 2,
+      lineStyle: 2,
+      priceLineVisible: false,
+      lastValueVisible: false,
     });
 
-    const supportData = data.chartData.map((c: any) => ({
-      time: c.time,
-      value: support,
-    }));
+    supportSeries.setData(
+      data.chartData.map((c: any) => ({
+        time: c.time,
+        value: support,
+      }))
+    );
 
-    const resistanceData = data.chartData.map((c: any) => ({
-      time: c.time,
-      value: resistance,
-    }));
-
-    supportSeries.setData(supportData);
-    resistanceSeries.setData(resistanceData);
+    resistanceSeries.setData(
+      data.chartData.map((c: any) => ({
+        time: c.time,
+        value: resistance,
+      }))
+    );
 
     chart.timeScale().fitContent();
 
-    return () => chart.remove();
+    const handleResize = () => {
+      chart.applyOptions({
+        width: chartRef.current?.clientWidth ?? 400,
+      });
+    };
+
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      chart.remove();
+    };
   }, [data]);
 
   return (
-    <div className="bg-zinc-900 rounded-2xl p-4 mt-6">
-      <h2 className="text-xl font-bold mb-4">
-        📈 NIFTY 50 Chart + Support / Resistance
+    <div className="bg-slate-900 border border-slate-700 rounded-2xl p-5 mt-6 shadow-xl">
+      <h2 className="text-2xl font-bold text-cyan-400 mb-4">
+        📈 NIFTY 50 Chart
       </h2>
 
-      <div ref={chartRef}></div>
+      <div
+        ref={chartRef}
+        className="w-full rounded-xl overflow-hidden"
+      />
     </div>
   );
 }
