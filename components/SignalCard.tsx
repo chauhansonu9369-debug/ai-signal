@@ -22,56 +22,72 @@ export default function SignalCard() {
     return () => clearInterval(timer);
   }, []);
 
-  const price = Number(data?.price ?? 0);
+  if (!data) return null;
 
   return (
-    <div className="rounded-2xl bg-zinc-900 p-5 mt-6">
-      <h2
-        className={`text-center text-3xl font-bold ${
-          String(data?.signal).includes("BUY")
-            ? "text-green-500"
-            : String(data?.signal).includes("SELL")
-            ? "text-red-500"
-            : "text-yellow-400"
-        }`}
-      >
-        {data?.signal ?? "WAIT"}
+    <div className="bg-zinc-900 rounded-2xl p-5 mt-6">
+
+      <h2 className={`text-4xl font-bold text-center ${
+        data.signal.includes("BUY")
+          ? "text-green-500"
+          : data.signal.includes("SELL")
+          ? "text-red-500"
+          : "text-yellow-400"
+      }`}>
+        {data.signal}
       </h2>
 
-      <div className="mt-5 space-y-3">
+      <div className="space-y-3 mt-6 text-lg">
 
         <div className="flex justify-between">
           <span>Live Price</span>
-          <b>{price.toFixed(2)}</b>
+          <b>{data.price.toFixed(2)}</b>
+        </div>
+
+        <div className="flex justify-between">
+          <span>Entry</span>
+          <b>{data.entry.toFixed(2)}</b>
+        </div>
+
+        <div className="flex justify-between">
+          <span>Stop Loss</span>
+          <b className="text-red-400">{data.stopLoss.toFixed(2)}</b>
+        </div>
+
+        <div className="flex justify-between">
+          <span>Target 1</span>
+          <b className="text-green-400">{data.target1.toFixed(2)}</b>
+        </div>
+
+        <div className="flex justify-between">
+          <span>Target 2</span>
+          <b className="text-green-400">{data.target2.toFixed(2)}</b>
         </div>
 
         <div className="flex justify-between">
           <span>RSI</span>
-          <b>{Number(data?.rsi ?? 0).toFixed(2)}</b>
+          <b>{data.rsi.toFixed(2)}</b>
         </div>
 
         <div className="flex justify-between">
           <span>AI Score</span>
-          <b className="text-cyan-400">
-            {data?.score ?? 0}%
-          </b>
-        </div>
-
-        <div className="mt-5">
-          <h3 className="font-bold text-lg mb-2">
-            Why this Signal?
-          </h3>
-
-          <ul className="space-y-1 text-sm">
-            {data?.reasons?.map((reason: string, index: number) => (
-              <li key={index}>
-                ✅ {reason}
-              </li>
-            ))}
-          </ul>
+          <b className="text-cyan-400">{data.score}%</b>
         </div>
 
       </div>
+
+      <h3 className="text-2xl font-bold mt-8">
+        Why this Signal?
+      </h3>
+
+      <div className="mt-4 space-y-2">
+        {data.reasons?.map((reason: string, index: number) => (
+          <div key={index}>
+            ✅ {reason}
+          </div>
+        ))}
+      </div>
+
     </div>
   );
 }

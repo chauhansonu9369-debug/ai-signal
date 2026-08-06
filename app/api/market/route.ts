@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
-import { EMA, RSI, MACD } from "technicalindicators";
+import { EMA, RSI, MACD, ATR, ADX } from "technicalindicators";
 
 const yahooFinance = new YahooFinance();
 
@@ -17,6 +17,14 @@ export async function GET() {
 
     const closes = quotes
       .map((q) => q.close)
+      .filter((v): v is number => v != null);
+
+    const highs = quotes
+      .map((q) => q.high)
+      .filter((v): v is number => v != null);
+
+    const lows = quotes
+      .map((q) => q.low)
       .filter((v): v is number => v != null);
 
     const chartData = quotes
@@ -81,13 +89,33 @@ export async function GET() {
     const signalLine = macdResult?.signal ?? 0;
     const histogram = macdResult?.histogram ?? 0;
 
-    console.log("MACD Result:", macdResult);
-    console.log("Closes Length:", closes.length);
-    
+    const atr =
+      highs.length >= 14 &&
+      lows.length >= 14 &&
+      closes.length >= 14
+        ? ATR.calculate({
+            high: highs,
+            low: lows,
+            close: closes,
+            period: 14,
+          }).at(-1) ?? 0
+        : 0;
+
+    const adx =
+      highs.length >= 14 &&
+      lows.length >= 14 &&
+      closes.length >= 14
+        ? ADX.calculate({
+            high: highs,
+            low: lows,
+            close: closes,
+            period: 14,
+          }).at(-1)?.adx ?? 0
+        : 0;
+
     let score = 50;
     const reasons: string[] = [];
-    
-    // EMA
+
     if (ema9 > ema21) {
       score += 20;
       reasons.push("EMA Bullish");
@@ -95,8 +123,7 @@ export async function GET() {
       score -= 20;
       reasons.push("EMA Bearish");
     }
-    
-    // MACD
+
     if (macd > signalLine) {
       score += 20;
       reasons.push("MACD Bullish");
@@ -104,8 +131,7 @@ export async function GET() {
       score -= 20;
       reasons.push("MACD Bearish");
     }
-    
-    // RSI
+
     if (rsi >= 45 && rsi <= 65) {
       score += 15;
       reasons.push("Healthy RSI");
@@ -116,8 +142,7 @@ export async function GET() {
       score += 15;
       reasons.push("Oversold");
     }
-    
-    // Price vs EMA21
+
     if (price > ema21) {
       score += 10;
       reasons.push("Price Above EMA21");
@@ -125,15 +150,19 @@ export async function GET() {
       score -= 10;
       reasons.push("Price Below EMA21");
     }
-    
-    // Limit score
+
+    if (adx > 25) {
+      score += 15;
+      reasons.push("Strong Trend (ADX)");
+    }
+
     score = Math.max(0, Math.min(100, score));
-    
+
     let signal = "WAIT";
-    
-    if (score >= 80) {
+
+    if (score >= 90) {
       signal = "STRONG BUY";
-    } else if (score >= 60) {
+    } else if (score >= 70) {
       signal = "BUY";
     } else if (score >= 40) {
       signal = "WAIT";
@@ -142,6 +171,17 @@ export async function GET() {
     } else {
       signal = "STRONG SELL";
     }
+
+    const support =
+      lows.length > 10
+        ? Math.min(...lows.slice(-10))
+        : price;
+
+    const resistance =
+      highs.length > 10
+        ? Math.max(...highs.slice(-10))
+        : price;
+
     return NextResponse.json({
       symbol: quote.symbol,
       price,
@@ -157,10 +197,20 @@ export async function GET() {
       signalLine,
       histogram,
 
-      signal,
+      atr,
+      adx,
 
+      signal,
       score,
       reasons,
+
+      entry: price,
+      stopLoss: Number((price - atr).toFixed(2)),
+      target1: Number((price + atr * 2).toFixed(2)),
+      target2: Number((price + atr * 4).toFixed(2)),
+
+      support,
+      resistance,
 
       chartData,
 
