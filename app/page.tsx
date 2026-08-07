@@ -1,3 +1,5 @@
+import Footer from "../components/Footer";
+import DisclaimerPopup from "@/components/DisclaimerPopup";
 import Header from "../components/Header";
 import PriceCard from "../components/PriceCard";
 import Chart from "../components/Chart";
@@ -9,24 +11,22 @@ import SupportResistance from "../components/SupportResistance";
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-black text-white p-5">
-      <div className="max-w-md mx-auto space-y-6">
-        <Header />
+    <>
+      <DisclaimerPopup />
 
-        <PriceCard />
-
-        <Chart />
-
-        <SignalCard />
-
-        <ConfidenceCard />
-
-        <MacdCard />
-
-        <SupportResistance />
-        
-        <SignalHistory />
-      </div>
-    </main>
+      <main className="min-h-screen bg-black text-white p-5">
+        <div className="max-w-md mx-auto space-y-6">
+          <Header />
+          <PriceCard />
+          <Chart />
+          <SignalCard />
+          <ConfidenceCard />
+          <MacdCard />
+          <SupportResistance />
+          <SignalHistory />
+          <Footer />
+        </div>
+      </main>
+    </>
   );
 }
