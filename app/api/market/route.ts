@@ -90,138 +90,258 @@ export async function GET() {
     const histogram = macdResult?.histogram ?? 0;
 
     const atr =
-      ATR.calculate({
-        high: highs,
-        low: lows,
-        close: closes,
-        period: 14,
-      }).at(-1) ?? 0;
+      highs.length >= 14 &&
+      lows.length >= 14 &&
+      closes.length >= 14
+        ? ATR.calculate({
+            high: highs,
+            low: lows,
+            close: closes,
+            period: 14,
+          }).at(-1) ?? 0
+        : 0;
 
     const adx =
-      ADX.calculate({
-        high: highs,
-        low: lows,
-        close: closes,
-        period: 14,
-      }).at(-1)?.adx ?? 0;
+      highs.length >= 14 &&
+      lows.length >= 14 &&
+      closes.length >= 14
+        ? ADX.calculate({
+            high: highs,
+            low: lows,
+            close: closes,
+            period: 14,
+          }).at(-1)?.adx ?? 0
+        : 0;
 
-      let score = 50;
-      const reasons: string[] = [];
+    // Support / Resistance from recent 10 daily candles
+    const support =
+      lows.length >= 10
+        ? Math.min(...lows.slice(-10))
+        : price;
 
-      // EMA
-      if (ema9 > ema21) {
-        score += 20;
-        reasons.push("EMA Bullish");
-      } else {
-        score -= 20;
-        reasons.push("EMA Bearish");
-      }
+    const resistance =
+      highs.length >= 10
+        ? Math.max(...highs.slice(-10))
+        : price;
 
-      // MACD
-      if (macd > signalLine) {
-        score += 20;
-        reasons.push("MACD Bullish");
-      } else {
-        score -= 20;
-        reasons.push("MACD Bearish");
-      }
+    /*
+     * V1.0.2 BALANCED SCORING
+     *
+     * Start from neutral 50.
+     * Positive values support BUY.
+     * Negative values support SELL.
+     */
 
-      // RSI
-      if (rsi >= 45 && rsi <= 65) {
-        score += 15;
-        reasons.push("Healthy RSI");
-      } else if (rsi > 70) {
-        score -= 15;
-        reasons.push("Overbought");
-      } else if (rsi < 30) {
-        score += 15;
-        reasons.push("Oversold");
-      }
+    let score = 50;
+    const reasons: string[] = [];
 
-      // Price vs EMA
-      if (price > ema21) {
-        score += 10;
-        reasons.push("Price Above EMA21");
-      } else {
+    // -------------------------
+    // 1. EMA TREND
+    // -------------------------
+
+    if (ema9 > ema21) {
+      score += 15;
+      reasons.push("EMA Trend Bullish");
+    } else if (ema9 < ema21) {
+      score -= 15;
+      reasons.push("EMA Trend Bearish");
+    } else {
+      reasons.push("EMA Trend Neutral");
+    }
+
+    // -------------------------
+    // 2. MACD
+    // -------------------------
+
+    if (macd > signalLine && histogram > 0) {
+      score += 15;
+      reasons.push("MACD Bullish");
+    } else if (macd < signalLine && histogram < 0) {
+      score -= 15;
+      reasons.push("MACD Bearish");
+    } else {
+      reasons.push("MACD Neutral");
+    }
+
+    // -------------------------
+    // 3. RSI
+    // -------------------------
+
+    if (rsi >= 50 && rsi <= 65) {
+      score += 10;
+      reasons.push("RSI Healthy Bullish");
+    } else if (rsi > 65 && rsi <= 70) {
+      score += 5;
+      reasons.push("RSI Strong");
+    } else if (rsi > 70) {
+      score -= 10;
+      reasons.push("RSI Overbought");
+    } else if (rsi >= 35 && rsi < 50) {
+      score -= 5;
+      reasons.push("RSI Weak");
+    } else if (rsi < 30) {
+      score += 5;
+      reasons.push("RSI Oversold");
+    } else {
+      score -= 10;
+      reasons.push("RSI Bearish");
+    }
+
+    // -------------------------
+    // 4. ADX TREND STRENGTH
+    // -------------------------
+
+    if (adx >= 25) {
+      reasons.push("Strong Trend ADX");
+    } else if (adx >= 20) {
+      reasons.push("Moderate Trend ADX");
+    } else {
+      score = score > 50 ? score - 5 : score + 5;
+      reasons.push("Weak Trend ADX");
+    }
+
+    // -------------------------
+    // 5. PRICE VS EMA21
+    // -------------------------
+
+    if (price > ema21) {
+      score += 10;
+      reasons.push("Price Above EMA21");
+    } else if (price < ema21) {
+      score -= 10;
+      reasons.push("Price Below EMA21");
+    }
+
+    // -------------------------
+    // 6. SUPPORT / RESISTANCE
+    // -------------------------
+
+    const range = resistance - support;
+
+    if (range > 0) {
+      const resistanceDistance =
+        ((resistance - price) / range) * 100;
+
+      const supportDistance =
+        ((price - support) / range) * 100;
+
+      if (resistanceDistance <= 10) {
         score -= 10;
-        reasons.push("Price Below EMA21");
-      }
-
-      // ADX
-      if (adx > 25) {
-        score += 15;
-        reasons.push("Strong Trend (ADX)");
-      }
-
-      score = Math.max(0, Math.min(100, score));
-
-      let signal = "WAIT";
-
-      if (score >= 90) {
-        signal = "STRONG BUY";
-      } else if (score >= 70) {
-        signal = "BUY";
-      } else if (score >= 40) {
-        signal = "WAIT";
-      } else if (score >= 20) {
-        signal = "SELL";
+        reasons.push("Price Near Resistance");
+      } else if (supportDistance <= 10) {
+        score += 10;
+        reasons.push("Price Near Support");
       } else {
-        signal = "STRONG SELL";
+        reasons.push("Price Away From Key Levels");
       }
+    }
 
-      const support =
-        lows.length > 10
-          ? Math.min(...lows.slice(-10))
-          : price;
+    // -------------------------
+    // 7. ATR / VOLATILITY
+    // -------------------------
 
-      const resistance =
-        highs.length > 10
-          ? Math.max(...highs.slice(-10))
-          : price;
+    if (atr > 0 && price > 0) {
+      const atrPercent = (atr / price) * 100;
 
-          return NextResponse.json({
-            symbol: quote.symbol,
+      if (atrPercent > 2) {
+        score -= 5;
+        reasons.push("High Volatility");
+      } else {
+        reasons.push("Normal Volatility");
+      }
+    }
 
-            price,
-            change,
-            changePercent,
-            marketState,
+    // Keep score between 0 and 100
+    score = Math.max(0, Math.min(100, Math.round(score)));
 
-            ema9,
-            ema21,
-            rsi,
+    // -------------------------
+    // FINAL SIGNAL
+    // -------------------------
 
-            macd,
-            signalLine,
-            histogram,
+    let signal = "WAIT";
 
-            atr,
-            adx,
+    if (score >= 85) {
+      signal = "STRONG BUY";
+    } else if (score >= 68) {
+      signal = "BUY";
+    } else if (score >= 45) {
+      signal = "WAIT";
+    } else if (score >= 28) {
+      signal = "SELL";
+    } else {
+      signal = "STRONG SELL";
+    }
 
-            signal,
-            score,
-            reasons,
+    /*
+     * STRONG BUY / STRONG SELL confirmation.
+     * Extreme signals require trend + momentum agreement.
+     */
 
-            entry: price,
-            stopLoss: Number((price - atr).toFixed(2)),
-            target1: Number((price + atr * 2).toFixed(2)),
-            target2: Number((price + atr * 4).toFixed(2)),
+    const bullishConfirmation =
+      ema9 > ema21 &&
+      macd > signalLine &&
+      histogram > 0 &&
+      rsi >= 50 &&
+      rsi <= 70;
 
-            support,
-            resistance,
+    const bearishConfirmation =
+      ema9 < ema21 &&
+      macd < signalLine &&
+      histogram < 0 &&
+      rsi < 50;
 
-            chartData,
+    if (signal === "STRONG BUY" && !bullishConfirmation) {
+      signal = "BUY";
+      reasons.push("Strong Buy Confirmation Not Complete");
+    }
 
-            updatedAt: new Date().toISOString(),
-          });
+    if (signal === "STRONG SELL" && !bearishConfirmation) {
+      signal = "SELL";
+      reasons.push("Strong Sell Confirmation Not Complete");
+    }
 
+    return NextResponse.json({
+      symbol: quote.symbol,
+
+      price,
+      change,
+      changePercent,
+      marketState,
+
+      ema9,
+      ema21,
+      rsi,
+
+      macd,
+      signalLine,
+      histogram,
+
+      atr,
+      adx,
+
+      signal,
+      score,
+      reasons,
+
+      entry: price,
+      stopLoss: Number((price - atr).toFixed(2)),
+      target1: Number((price + atr * 2).toFixed(2)),
+      target2: Number((price + atr * 4).toFixed(2)),
+
+      support,
+      resistance,
+
+      chartData,
+
+      updatedAt: new Date().toISOString(),
+    });
   } catch (error) {
-          return NextResponse.json(
-            {
-              error: "Failed to fetch market data",
-              details: String(error),
-            },
-            { status: 500 }
-          );
+    return NextResponse.json(
+      {
+        error: "Failed to fetch market data",
+        details: String(error),
+      },
+      { status: 500 }
+    );
   }
 }

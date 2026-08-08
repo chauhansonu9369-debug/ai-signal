@@ -14,17 +14,32 @@ export default function Home() {
     <>
       <DisclaimerPopup />
 
-      <main className="min-h-screen bg-black text-white p-5">
-        <div className="max-w-md mx-auto space-y-6">
+      <main className="min-h-screen bg-black text-white px-4 py-5 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto space-y-6">
+
+          {/* Header */}
           <Header />
+
+          {/* Live Price */}
           <PriceCard />
+
+          {/* Chart - Full Width */}
           <Chart />
+
+          {/* Main Signal - Full Width */}
           <SignalCard />
-          <ConfidenceCard />
-          <MacdCard />
-          <SupportResistance />
-          <SignalHistory />
+
+          {/* Indicator Cards */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <ConfidenceCard />
+            <MacdCard />
+            <SupportResistance />
+            <SignalHistory />
+          </div>
+
+          {/* Footer */}
           <Footer />
+
         </div>
       </main>
     </>
