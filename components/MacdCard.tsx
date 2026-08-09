@@ -2,15 +2,22 @@
 
 import { useEffect, useState } from "react";
 
-export default function MacdCard() {
+type Props = {
+  timeframe: string;
+};
+
+export default function MacdCard({ timeframe }: Props) {
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch("/api/market", {
-          cache: "no-store",
-        });
+        const res = await fetch(
+          `/api/market?timeframe=${timeframe}`,
+          {
+            cache: "no-store",
+          }
+        );
 
         const json = await res.json();
         setData(json);
@@ -24,7 +31,7 @@ export default function MacdCard() {
     const timer = setInterval(load, 10000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [timeframe]);
 
   const bullish = (data?.macd ?? 0) > (data?.signalLine ?? 0);
 

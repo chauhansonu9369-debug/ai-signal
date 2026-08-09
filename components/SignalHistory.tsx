@@ -8,7 +8,7 @@ export default function SignalHistory() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch("/api/market", {
+        const res = await fetch("/api/market?timeframe=15m", {
           cache: "no-store",
         });
 
@@ -38,9 +38,13 @@ export default function SignalHistory() {
 
   return (
     <div className="bg-zinc-900 rounded-2xl p-5 mt-6">
-      <h2 className="text-xl font-bold mb-4">
-        Signal History
+      <h2 className="text-xl font-bold mb-1">
+        📜 Signal History — 15M
       </h2>
+
+      <p className="text-sm text-zinc-400 mb-4">
+        Previous signals from the 15-minute timeframe
+      </p>
 
       <table className="w-full">
         <thead>
@@ -55,7 +59,11 @@ export default function SignalHistory() {
           {history.map((row, i) => (
             <tr key={i}>
               <td>{row.time}</td>
-              <td className="text-center">{row.signal}</td>
+
+              <td className="text-center">
+                {row.signal}
+              </td>
+
               <td className="text-right">
                 {Number(row.price).toFixed(2)}
               </td>

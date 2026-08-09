@@ -4,13 +4,39 @@ import { EMA, RSI, MACD, ATR, ADX } from "technicalindicators";
 
 const yahooFinance = new YahooFinance();
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const quote = await yahooFinance.quote("^NSEI");
+    const { searchParams } = new URL(request.url);
 
+    const requestedTimeframe =
+      searchParams.get("timeframe") || "15m";
+
+    const allowedTimeframes = ["1m", "5m", "15m", "1h", "1d"];
+
+    const timeframe = allowedTimeframes.includes(requestedTimeframe)
+      ? requestedTimeframe
+      : "15m";
+
+    // Yahoo Finance historical limits
+    const quote = await yahooFinance.quote("^NSEI");
+    
+    const now = Date.now();
+    
+    let period1: Date;
+    
+    if (timeframe === "1m") {
+      period1 = new Date(now - 5 * 24 * 60 * 60 * 1000);
+    } else if (timeframe === "5m" || timeframe === "15m") {
+      period1 = new Date(now - 59 * 24 * 60 * 60 * 1000);
+    } else if (timeframe === "1h") {
+      period1 = new Date(now - 365 * 24 * 60 * 60 * 1000);
+    } else {
+      period1 = new Date(now - 1000 * 24 * 60 * 60 * 1000);
+    }
+    
     const history = await yahooFinance.chart("^NSEI", {
-      period1: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
-      interval: "1d",
+      period1,
+      interval: timeframe as any,
     });
 
     const quotes = history.quotes ?? [];
@@ -37,7 +63,7 @@ export async function GET() {
           q.close != null
       )
       .map((q) => ({
-        time: q.date.toISOString().slice(0, 10),
+        time: Math.floor(q.date!.getTime() / 1000),
         open: q.open!,
         high: q.high!,
         low: q.low!,
@@ -46,9 +72,11 @@ export async function GET() {
 
     const price = quote.regularMarketPrice ?? 0;
     const change = quote.regularMarketChange ?? 0;
-    const changePercent = quote.regularMarketChangePercent ?? 0;
+    const changePercent =
+      quote.regularMarketChangePercent ?? 0;
     const marketState = quote.marketState ?? "UNKNOWN";
 
+    // EMA 9
     const ema9 =
       closes.length >= 9
         ? EMA.calculate({
@@ -57,6 +85,7 @@ export async function GET() {
           }).at(-1) ?? price
         : price;
 
+    // EMA 21
     const ema21 =
       closes.length >= 21
         ? EMA.calculate({
@@ -65,6 +94,7 @@ export async function GET() {
           }).at(-1) ?? price
         : price;
 
+    // RSI 14
     const rsi =
       closes.length >= 14
         ? RSI.calculate({
@@ -73,6 +103,7 @@ export async function GET() {
           }).at(-1) ?? 50
         : 50;
 
+    // MACD
     const macdResult =
       closes.length >= 35
         ? MACD.calculate({
@@ -89,6 +120,7 @@ export async function GET() {
     const signalLine = macdResult?.signal ?? 0;
     const histogram = macdResult?.histogram ?? 0;
 
+    // ATR
     const atr =
       highs.length >= 14 &&
       lows.length >= 14 &&
@@ -101,6 +133,7 @@ export async function GET() {
           }).at(-1) ?? 0
         : 0;
 
+    // ADX
     const adx =
       highs.length >= 14 &&
       lows.length >= 14 &&
@@ -113,7 +146,7 @@ export async function GET() {
           }).at(-1)?.adx ?? 0
         : 0;
 
-    // Support / Resistance from recent 10 daily candles
+    // Support / Resistance
     const support =
       lows.length >= 10
         ? Math.min(...lows.slice(-10))
@@ -124,21 +157,14 @@ export async function GET() {
         ? Math.max(...highs.slice(-10))
         : price;
 
-    /*
-     * V1.0.2 BALANCED SCORING
-     *
-     * Start from neutral 50.
-     * Positive values support BUY.
-     * Negative values support SELL.
-     */
+    // =========================
+    // BALANCED SCORING
+    // =========================
 
     let score = 50;
     const reasons: string[] = [];
 
-    // -------------------------
-    // 1. EMA TREND
-    // -------------------------
-
+    // EMA
     if (ema9 > ema21) {
       score += 15;
       reasons.push("EMA Trend Bullish");
@@ -149,10 +175,7 @@ export async function GET() {
       reasons.push("EMA Trend Neutral");
     }
 
-    // -------------------------
-    // 2. MACD
-    // -------------------------
-
+    // MACD
     if (macd > signalLine && histogram > 0) {
       score += 15;
       reasons.push("MACD Bullish");
@@ -163,10 +186,7 @@ export async function GET() {
       reasons.push("MACD Neutral");
     }
 
-    // -------------------------
-    // 3. RSI
-    // -------------------------
-
+    // RSI
     if (rsi >= 50 && rsi <= 65) {
       score += 10;
       reasons.push("RSI Healthy Bullish");
@@ -187,10 +207,7 @@ export async function GET() {
       reasons.push("RSI Bearish");
     }
 
-    // -------------------------
-    // 4. ADX TREND STRENGTH
-    // -------------------------
-
+    // ADX
     if (adx >= 25) {
       reasons.push("Strong Trend ADX");
     } else if (adx >= 20) {
@@ -200,10 +217,7 @@ export async function GET() {
       reasons.push("Weak Trend ADX");
     }
 
-    // -------------------------
-    // 5. PRICE VS EMA21
-    // -------------------------
-
+    // Price vs EMA21
     if (price > ema21) {
       score += 10;
       reasons.push("Price Above EMA21");
@@ -212,10 +226,7 @@ export async function GET() {
       reasons.push("Price Below EMA21");
     }
 
-    // -------------------------
-    // 6. SUPPORT / RESISTANCE
-    // -------------------------
-
+    // Support / Resistance
     const range = resistance - support;
 
     if (range > 0) {
@@ -236,10 +247,7 @@ export async function GET() {
       }
     }
 
-    // -------------------------
-    // 7. ATR / VOLATILITY
-    // -------------------------
-
+    // ATR / Volatility
     if (atr > 0 && price > 0) {
       const atrPercent = (atr / price) * 100;
 
@@ -251,12 +259,14 @@ export async function GET() {
       }
     }
 
-    // Keep score between 0 and 100
-    score = Math.max(0, Math.min(100, Math.round(score)));
+    score = Math.max(
+      0,
+      Math.min(100, Math.round(score))
+    );
 
-    // -------------------------
-    // FINAL SIGNAL
-    // -------------------------
+    // =========================
+    // SIGNAL
+    // =========================
 
     let signal = "WAIT";
 
@@ -272,11 +282,7 @@ export async function GET() {
       signal = "STRONG SELL";
     }
 
-    /*
-     * STRONG BUY / STRONG SELL confirmation.
-     * Extreme signals require trend + momentum agreement.
-     */
-
+    // Strong signal confirmation
     const bullishConfirmation =
       ema9 > ema21 &&
       macd > signalLine &&
@@ -290,18 +296,31 @@ export async function GET() {
       histogram < 0 &&
       rsi < 50;
 
-    if (signal === "STRONG BUY" && !bullishConfirmation) {
+    if (
+      signal === "STRONG BUY" &&
+      !bullishConfirmation
+    ) {
       signal = "BUY";
-      reasons.push("Strong Buy Confirmation Not Complete");
+      reasons.push(
+        "Strong Buy Confirmation Not Complete"
+      );
     }
 
-    if (signal === "STRONG SELL" && !bearishConfirmation) {
+    if (
+      signal === "STRONG SELL" &&
+      !bearishConfirmation
+    ) {
       signal = "SELL";
-      reasons.push("Strong Sell Confirmation Not Complete");
+      reasons.push(
+        "Strong Sell Confirmation Not Complete"
+      );
     }
 
     return NextResponse.json({
       symbol: quote.symbol,
+
+      // Selected timeframe
+      timeframe,
 
       price,
       change,
@@ -324,18 +343,30 @@ export async function GET() {
       reasons,
 
       entry: price,
-      stopLoss: Number((price - atr).toFixed(2)),
-      target1: Number((price + atr * 2).toFixed(2)),
-      target2: Number((price + atr * 4).toFixed(2)),
+
+      stopLoss: Number(
+        (price - atr).toFixed(2)
+      ),
+
+      target1: Number(
+        (price + atr * 2).toFixed(2)
+      ),
+
+      target2: Number(
+        (price + atr * 4).toFixed(2)
+      ),
 
       support,
       resistance,
 
       chartData,
 
-      updatedAt: new Date().toISOString(),
+      updatedAt:
+        new Date().toISOString(),
     });
   } catch (error) {
+    console.error("Market API Error:", error);
+
     return NextResponse.json(
       {
         error: "Failed to fetch market data",

@@ -37,7 +37,7 @@ export default function Footer() {
       </div>
 
       <p>
-        © 2026 AI-Signal. All Rights Reserved.
+        © 2026 AI-Signal. All Rights Reserved. _ sonu
       </p>
 
     </footer>

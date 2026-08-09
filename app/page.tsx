@@ -1,3 +1,8 @@
+"use client";
+
+import { useState } from "react";
+
+import TimeframeSelector from "../components/TimeframeSelector";
 import Footer from "../components/Footer";
 import DisclaimerPopup from "@/components/DisclaimerPopup";
 import Header from "../components/Header";
@@ -10,6 +15,8 @@ import SignalHistory from "../components/SignalHistory";
 import SupportResistance from "../components/SupportResistance";
 
 export default function Home() {
+  const [timeframe, setTimeframe] = useState("15m");
+
   return (
     <>
       <DisclaimerPopup />
@@ -17,27 +24,26 @@ export default function Home() {
       <main className="min-h-screen bg-black text-white px-4 py-5 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto space-y-6">
 
-          {/* Header */}
           <Header />
 
-          {/* Live Price */}
+          <TimeframeSelector
+            selected={timeframe}
+            onChange={setTimeframe}
+          />
+
           <PriceCard />
 
-          {/* Chart - Full Width */}
-          <Chart />
+          <Chart timeframe={timeframe} />
 
-          {/* Main Signal - Full Width */}
-          <SignalCard />
+          <SignalCard timeframe={timeframe} />
 
-          {/* Indicator Cards */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <ConfidenceCard />
-            <MacdCard />
-            <SupportResistance />
-            <SignalHistory />
+            <ConfidenceCard timeframe={timeframe} />
+            <MacdCard timeframe={timeframe} />
+            <SupportResistance timeframe={timeframe} />
+            <SignalHistory timeframe={timeframe} />
           </div>
 
-          {/* Footer */}
           <Footer />
 
         </div>
