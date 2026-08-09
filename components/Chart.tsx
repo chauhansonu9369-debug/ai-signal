@@ -54,7 +54,7 @@ export default function Chart({ timeframe }: ChartProps) {
 
     const chart = createChart(container, {
       width: container.clientWidth,
-      height: 550,
+      height: 400,
 
       layout: {
         background: {
@@ -269,9 +269,6 @@ export default function Chart({ timeframe }: ChartProps) {
       <div
         ref={chartRef}
         className="w-full rounded-xl overflow-hidden"
-        style={{
-          minHeight: "550px",
-        }}
       />
 
     </div>

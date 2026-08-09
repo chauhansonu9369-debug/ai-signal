@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from "react";
 
-export default function SupportResistance() {
+type Props = {
+  timeframe: string;
+};
+
+export default function SupportResistance({ timeframe }: Props) {
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {

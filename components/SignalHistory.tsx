@@ -2,13 +2,17 @@
 
 import { useEffect, useState } from "react";
 
-export default function SignalHistory() {
+type Props = {
+  timeframe: string;
+};
+
+export default function SignalHistory({ timeframe }: Props) {
   const [history, setHistory] = useState<any[]>([]);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch("/api/market?timeframe=15m", {
+        const res = await fetch(`/api/market?timeframe=${timeframe}`, {
           cache: "no-store",
         });
 
