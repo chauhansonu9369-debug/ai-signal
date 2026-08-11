@@ -20,7 +20,7 @@ export default function Chart({ timeframe }: ChartProps) {
     const load = async () => {
       try {
         const res = await fetch(
-          `/api/market?timeframe=${timeframe}`,
+          `/api/timeframe?timeframe=${timeframe}`,
           {
             cache: "no-store",
           }

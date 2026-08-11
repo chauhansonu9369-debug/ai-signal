@@ -11,9 +11,12 @@ export default function SupportResistance({ timeframe }: Props) {
 
   useEffect(() => {
     const load = async () => {
-      const res = await fetch("/api/market", {
-        cache: "no-store",
-      });
+      const res = await fetch(
+        `/api/market?timeframe=${timeframe}`,
+        {
+          cache: "no-store",
+        }
+      );
 
       const json = await res.json();
       setData(json);
@@ -24,7 +27,7 @@ export default function SupportResistance({ timeframe }: Props) {
     const timer = setInterval(load, 10000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [timeframe]);
 
   const candles = data?.chartData ?? [];
 
