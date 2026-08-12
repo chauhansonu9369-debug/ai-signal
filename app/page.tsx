@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 
 import Header from "../components/Header";
+import TimeframeSelector from "../components/TimeframeSelector";
 import PriceCard from "../components/PriceCard";
 import Chart from "../components/Chart";
 import SignalPerformance from "../components/SignalPerformance";
@@ -10,6 +12,8 @@ import Footer from "../components/Footer";
 import DisclaimerPopup from "@/components/DisclaimerPopup";
 
 export default function Home() {
+const [timeframe, setTimeframe] = useState("15m");
+
   return (
     <>
       <DisclaimerPopup />
@@ -19,6 +23,11 @@ export default function Home() {
 
           <Header />
 
+          <TimeframeSelector
+            selected={timeframe}
+            onChange={setTimeframe}
+          />
+
           <h1 className="text-3xl sm:text-4xl font-bold text-center text-cyan-400">
             🏠 NIFTY 50 AI Signal
           </h1>
@@ -27,7 +36,7 @@ export default function Home() {
           <PriceCard />
 
           {/* NIFTY 50 Chart */}
-          <Chart timeframe="15m" />
+          <Chart timeframe={timeframe} />
 
           {/* Navigation */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
