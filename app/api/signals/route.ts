@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
+import { sql } from "@/lib/db";
 
 const yahooFinance = new YahooFinance();
 
@@ -18,48 +19,66 @@ type SignalRecord = {
   completedAt?: string;
 };
 
-const signals: SignalRecord[] = [];
-
 async function checkPendingSignals() {
-  if (signals.length === 0) return;
-
-  const pendingSignals = signals.filter(
-    (s) => s.status === "PENDING"
-  );
-
-  if (pendingSignals.length === 0) return;
-
   try {
+    const pendingSignals = await sql`
+      SELECT
+        id,
+        timeframe,
+        signal,
+        entry,
+        stop_loss,
+        target1,
+        target2,
+        created_at,
+        status,
+        result,
+        result_price,
+        completed_at
+      FROM signals
+      WHERE status = 'PENDING'
+      ORDER BY created_at DESC
+    `;
+
+    if (pendingSignals.length === 0) return;
+
     const quote = await yahooFinance.quote("^NSEI");
     const price = quote.regularMarketPrice ?? 0;
 
     for (const signal of pendingSignals) {
+      let status: "SUCCESS" | "UNSUCCESSFUL" | null = null;
+      let result: "TARGET" | "STOP_LOSS" | null = null;
+
       if (signal.signal === "BUY") {
-        if (price <= signal.stopLoss) {
-          signal.status = "UNSUCCESSFUL";
-          signal.result = "STOP_LOSS";
-          signal.resultPrice = price;
-          signal.completedAt = new Date().toISOString();
-        } else if (price >= signal.target1) {
-          signal.status = "SUCCESS";
-          signal.result = "TARGET";
-          signal.resultPrice = price;
-          signal.completedAt = new Date().toISOString();
+        if (price <= Number(signal.stop_loss)) {
+          status = "UNSUCCESSFUL";
+          result = "STOP_LOSS";
+        } else if (price >= Number(signal.target1)) {
+          status = "SUCCESS";
+          result = "TARGET";
         }
       }
 
       if (signal.signal === "SELL") {
-        if (price >= signal.stopLoss) {
-          signal.status = "UNSUCCESSFUL";
-          signal.result = "STOP_LOSS";
-          signal.resultPrice = price;
-          signal.completedAt = new Date().toISOString();
-        } else if (price <= signal.target1) {
-          signal.status = "SUCCESS";
-          signal.result = "TARGET";
-          signal.resultPrice = price;
-          signal.completedAt = new Date().toISOString();
+        if (price >= Number(signal.stop_loss)) {
+          status = "UNSUCCESSFUL";
+          result = "STOP_LOSS";
+        } else if (price <= Number(signal.target1)) {
+          status = "SUCCESS";
+          result = "TARGET";
         }
+      }
+
+      if (status && result) {
+        await sql`
+          UPDATE signals
+          SET
+            status = ${status},
+            result = ${result},
+            result_price = ${price},
+            completed_at = NOW()
+          WHERE id = ${signal.id}
+        `;
       }
     }
   } catch (error) {
@@ -67,12 +86,60 @@ async function checkPendingSignals() {
   }
 }
 
-export async function GET() {
-  await checkPendingSignals();
+function mapSignal(row: any): SignalRecord {
+  return {
+    id: row.id,
+    timeframe: row.timeframe,
+    signal: row.signal,
+    entry: Number(row.entry),
+    stopLoss: Number(row.stop_loss),
+    target1: Number(row.target1),
+    target2: Number(row.target2),
+    createdAt: row.created_at,
+    status: row.status,
+    ...(row.result ? { result: row.result } : {}),
+    ...(row.result_price !== null
+      ? { resultPrice: Number(row.result_price) }
+      : {}),
+    ...(row.completed_at
+      ? { completedAt: row.completed_at }
+      : {}),
+  };
+}
 
-  return NextResponse.json({
-    signals,
-  });
+export async function GET() {
+  try {
+    await checkPendingSignals();
+
+    const rows = await sql`
+      SELECT
+        id,
+        timeframe,
+        signal,
+        entry,
+        stop_loss,
+        target1,
+        target2,
+        created_at,
+        status,
+        result,
+        result_price,
+        completed_at
+      FROM signals
+      ORDER BY created_at DESC
+    `;
+
+    return NextResponse.json({
+      signals: rows.map(mapSignal),
+    });
+  } catch (error) {
+    console.error("Signal GET Error:", error);
+
+    return NextResponse.json(
+      { error: "Failed to load signals" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(request: Request) {
@@ -102,36 +169,55 @@ export async function POST(request: Request) {
       );
     }
 
-    const newSignal: SignalRecord = {
-      id: `${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2, 8)}`,
+    const id = `${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 8)}`;
 
-      timeframe,
-      signal,
-      entry,
-      stopLoss,
-      target1,
-      target2,
-
-      createdAt: new Date().toISOString(),
-
-      status: "PENDING",
-    };
-
-    signals.push(newSignal);
+    const rows = await sql`
+      INSERT INTO signals (
+        id,
+        timeframe,
+        signal,
+        entry,
+        stop_loss,
+        target1,
+        target2,
+        status
+      )
+      VALUES (
+        ${id},
+        ${timeframe},
+        ${signal},
+        ${entry},
+        ${stopLoss},
+        ${target1},
+        ${target2},
+        'PENDING'
+      )
+      RETURNING
+        id,
+        timeframe,
+        signal,
+        entry,
+        stop_loss,
+        target1,
+        target2,
+        created_at,
+        status,
+        result,
+        result_price,
+        completed_at
+    `;
 
     return NextResponse.json({
       success: true,
-      signal: newSignal,
+      signal: mapSignal(rows[0]),
     });
   } catch (error) {
     console.error("Signal Save Error:", error);
 
     return NextResponse.json(
-      {
-        error: "Failed to save signal",
-      },
+      { error: "Failed to save signal" },
       { status: 500 }
     );
   }
