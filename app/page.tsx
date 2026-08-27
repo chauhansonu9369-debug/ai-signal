@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 
 import Header from "../components/Header";
+import RakhiSpecial from "../components/RakhiSpecial";
 import TimeframeSelector from "../components/TimeframeSelector";
 import PriceCard from "../components/PriceCard";
 import Chart from "../components/Chart";
@@ -22,6 +23,8 @@ const [timeframe, setTimeframe] = useState("15m");
         <div className="max-w-6xl mx-auto space-y-6">
 
           <Header />
+
+          <RakhiSpecial />
 
           <TimeframeSelector
             selected={timeframe}
